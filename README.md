@@ -1,2 +1,3 @@
-# osrs_wiki_f2p_filters
-Filters for F2P users on the OSRS wiki
+# OSRS Wiki F2P Filters
+
+Filters for F2P users on the Old School RuneScape Wiki.
