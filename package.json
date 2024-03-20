@@ -1,6 +1,6 @@
 {
-  "name": "osrs_wiki_f2p_filters",
-  "version": "0.1.0",
+  "name": "osrs_wiki_f2p_helper",
+  "version": "0.2.0",
   "author": {
     "name": "Blake Gearin",
     "email": "hello@blakeg.me",
@@ -8,13 +8,13 @@
   },
   "license": "MIT",
   "description": "Filters for F2P users on the Old School RuneScape Wiki",
-  "homepage": "https://github.com/blakegearin/osrs_wiki_f2p_filters#readme",
+  "homepage": "https://github.com/blakegearin/osrs_wiki_f2p_helper#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/blakegearin/osrs_wiki_f2p_filters.git"
+    "url": "git+https://github.com/blakegearin/osrs_wiki_f2p_helper.git"
   },
   "bugs": {
-    "url": "https://github.com/blakegearin/osrs_wiki_f2p_filters/issues"
+    "url": "https://github.com/blakegearin/osrs_wiki_f2p_helper/issues"
   },
   "keywords": [
     "osrs",

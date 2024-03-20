@@ -1,16 +1,27 @@
+/* ==UserStyle==
+@name         OSRS Wiki F2P Helper - F2P Links
+@namespace    oldschool.runescape.wiki
+@description  Eases the navigation of free-to-play users on Old School RuneScape Wiki.
+@author       Blake Gearin <hello@blakeg.me> (https://github.com/blakegearin)
+@homepageURL  https://github.com/blakegearin/osrs_wiki_f2p_helper
+@supportURL   https://github.com/blakegearin/osrs_wiki_f2p_helper/issues
+@version      0.2.0
+@license      MIT
+==/UserStyle== */
+
 body.wgl-theme-light
 {
-  --f2p-color: #439339;
+  --f2p-link-color: #439339;
 }
 
 body.wgl-theme-dark
 {
-  --f2p-color: #8cd4e6;
+  --f2p-link-color: #8cd4e6;
 }
 
 body.wgl-theme-browntown
 {
-  --f2p-color: #95b77e;
+  --f2p-link-color: #95b77e;
 }
 
 /* Category: Free-to-play */
@@ -66,7 +77,7 @@ a[href="/w/Category:Free-to-play_account_builds"],
 a[href="/w/Category:Free-to-play_items"],
 a[href="/w/Category:Free-to-play_quests"]
 {
-  color: var(--f2p-color);
+  color: var(--f2p-link-color);
 }
 
 /* Category: Free-to-play account builds */
@@ -90,7 +101,7 @@ a[href="/w/Rune_pure_(free-to-play)"],
 a[href="/w/Strength_pure_(free-to-play)"],
 a[href="/w/Tank_(free-to-play)"]
 {
-  color: var(--f2p-color);
+  color: var(--f2p-link-color);
 }
 
 /* Category: Free-to-play items */
@@ -1097,7 +1108,7 @@ a[href="/w/Iron_axe"],
 a[href="/w/Iron_axe_head"],
 a[href="/w/Iron_bar"]
 {
-  color: var(--f2p-color);
+  color: var(--f2p-link-color);
 }
 
 /* Category: Free-to-play items */
@@ -2104,7 +2115,7 @@ a[href="/w/Zombie_mask"],
 a[href="/w/Zombie_shirt"],
 a[href="/w/Zombie_trousers"]
 {
-  color: var(--f2p-color);
+  color: var(--f2p-link-color);
 }
 
 /* Category: Free-to-play items */
@@ -2112,7 +2123,30 @@ a[href="/w/Zombie_trousers"]
 /* Batch: 3 of 3 */
 a[href="/w/Zuriel%27s_staff_(Last_Man_Standing)"]
 {
-  color: var(--f2p-color);
+  color: var(--f2p-link-color);
+}
+
+/* Category: Free-to-play skills */
+/* Link: "https://oldschool.runescape.wiki/w/Category:Free-to-play_skills" */
+/* Batch: 1 of 1 */
+a[href="/w/Category:Free-to-play_skills"],
+a[href="/w/Attack"],
+a[href="/w/Cooking"],
+a[href="/w/Crafting"],
+a[href="/w/Defence"],
+a[href="/w/Firemaking"],
+a[href="/w/Fishing"],
+a[href="/w/Hitpoints"],
+a[href="/w/Magic"],
+a[href="/w/Mining"],
+a[href="/w/Prayer"],
+a[href="/w/Ranged"],
+a[href="/w/Runecraft"],
+a[href="/w/Smithing"],
+a[href="/w/Strength"],
+a[href="/w/Woodcutting"]
+{
+  color: var(--f2p-link-color);
 }
 
 /* Category: Free-to-play quests */
@@ -2143,5 +2177,5 @@ a[href="/w/Vampyre_Slayer"],
 a[href="/w/Witch%27s_Potion"],
 a[href="/w/X_Marks_the_Spot"]
 {
-  color: var(--f2p-color);
+  color: var(--f2p-link-color);
 }

@@ -1,39 +1,63 @@
 const fs = require('fs')
+const packageJson = require('./package.json')
 
-const CONFIG = {
-  members: {
-    ignore: false,
-    cssFilename: 'members.css',
-    linkColor: {
-      key: 'members-color',
-      value: {
-        light: '#ae2a5b',
-        dark: '#d3a1a1',
-        browntown: '#b5718d'
-      }
-    },
-    categories: [
-      "Members' items",
-      "Members' account builds"
-    ]
+const VERSION = packageJson.version
+
+const USER_STYLE_METADATA = (subtitle = null) => `/* ==UserStyle==
+@name         OSRS Wiki F2P Helper${subtitle ? ` - ${subtitle}` : ''}
+@namespace    oldschool.runescape.wiki
+@description  Eases the navigation of free-to-play users on Old School RuneScape Wiki.
+@author       Blake Gearin <hello@blakeg.me> (https://github.com/blakegearin)
+@homepageURL  https://github.com/blakegearin/osrs_wiki_f2p_helper
+@supportURL   https://github.com/blakegearin/osrs_wiki_f2p_helper/issues
+@version      ${VERSION}
+@license      MIT
+==/UserStyle== */
+`
+
+const config = {
+  cssFilename: 'osrs_wiki_f2p_helper.user.css',
+  tableRowsForMembers: {
+    cssDeclaration: 'filter: opacity(0.25);'
   },
-  free_to_play: {
-    ignore: false,
-    cssFilename: 'f2p.css',
-    linkColor: {
-      key: 'f2p-color',
-      value: {
-        light: '#439339',
-        dark: '#8cd4e6',
-        browntown: '#95b77e'
-      }
+  linksMetadata: {
+    member: {
+      ignore: false,
+      subtitle: "Members' Links",
+      cssFilename: 'osrs_wiki_f2p_helper_member_links.user.css',
+      linkColor: {
+        key: 'member-link-color',
+        value: {
+          light: '#ae2a5b',
+          dark: '#d3a1a1',
+          browntown: '#b5718d'
+        }
+      },
+      categories: [
+        "Members' items",
+        "Members' account builds"
+      ]
     },
-    categories: [
-      'Free-to-play',
-      'Free-to-play account builds',
-      'Free-to-play items',
-      'Free-to-play quests'
-    ]
+    free_to_play: {
+      ignore: false,
+      subtitle: 'F2P Links',
+      cssFilename: 'osrs_wiki_f2p_helper_f2p_links.user.css',
+      linkColor: {
+        key: 'f2p-link-color',
+        value: {
+          light: '#439339',
+          dark: '#8cd4e6',
+          browntown: '#95b77e'
+        }
+      },
+      categories: [
+        'Free-to-play',
+        'Free-to-play account builds',
+        'Free-to-play items',
+        'Free-to-play skills',
+        'Free-to-play quests'
+      ]
+    }
   }
 }
 
@@ -68,17 +92,11 @@ async function fetchCategoryMembersBatch (allTitles, cmtitle, cmcontinue = null)
   return allTitles
 }
 
-async function getPageTitlesFromCategory (categoryName) {
-  const cmtitle = `Category:${categoryName}`
-  const allTitles = [cmtitle]
-
-  await fetchCategoryMembersBatch(allTitles, cmtitle)
-
-  return allTitles
-}
-
 async function generatePageTitleSelectorsFromCategory (categoryName) {
-  const pageTitles = await getPageTitlesFromCategory(categoryName)
+  const cmtitle = `Category:${categoryName}`
+  const pageTitles = [cmtitle]
+
+  await fetchCategoryMembersBatch(pageTitles, cmtitle)
 
   function escapePageTitle (pageTitle) {
     return encodeURIComponent(pageTitle)
@@ -93,22 +111,6 @@ async function generatePageTitleSelectorsFromCategory (categoryName) {
     (pageTitle) => `a[href="/w/${escapePageTitle(pageTitle)}"]`
   )
 }
-
-// async function generateCssRulesForCategory (linkColorVariableName, categoryName) {
-//   const pageTitleSelectors = await generatePageTitleSelectorsFromCategory(categoryName)
-
-//   const escapedCategoryName = categoryName.replaceAll(' ', '_')
-
-//   const categoryLink = `${WIKI_URL}/w/Category:${escapedCategoryName}`
-
-//   return `
-// /* Category: ${categoryName} */
-// /* Link: "${categoryLink}" */
-// ${pageTitleSelectors.join(',\n')}
-// {
-//   color: var(--${linkColorVariableName});
-// }`
-// }
 
 async function generateCssRulesForCategory (linkColorVariableName, categoryName) {
   const pageTitleSelectors = await generatePageTitleSelectorsFromCategory(categoryName)
@@ -177,10 +179,10 @@ body.wgl-theme-browntown
 }`
 }
 
-function generateCssFile (cssFilename, cssContent) {
+function generateCssFile (cssFilename, cssContent, subtitle = null) {
   fs.writeFile(
     `output/${cssFilename}`,
-    cssContent,
+    [USER_STYLE_METADATA(subtitle), cssContent].join('\n'),
     (error) => {
       if (error) {
         console.error('Error writing CSS file:', error)
@@ -203,15 +205,15 @@ async function generateCssObjectForConfigValue ({ ignore, linkColor, categories 
   }
 }
 
-async function generateCssFiles () {
+async function generateCssFiles (config) {
   const cssContents = []
 
-  const values = Object.values(CONFIG)
+  const linksMetadata = Object.values(config.linksMetadata)
 
-  for (let i = 0; i < values.length; i++) {
-    const value = values[i]
+  for (let i = 0; i < linksMetadata.length; i++) {
+    const linkMetadata = linksMetadata[i]
 
-    const cssObject = await generateCssObjectForConfigValue(value)
+    const cssObject = await generateCssObjectForConfigValue(linkMetadata)
     cssContents.push(cssObject)
 
     const cssContent = [
@@ -219,20 +221,29 @@ async function generateCssFiles () {
       cssObject.rules.join('\n')
     ].join('\n')
 
-    generateCssFile(value.cssFilename, cssContent)
+    generateCssFile(linkMetadata.cssFilename, cssContent, linkMetadata.subtitle)
   }
 
-  const allVariables = generateCssVariables(
-    values.map((value) => value.linkColor)
+  const linksVariables = generateCssVariables(
+    linksMetadata.map((value) => value.linkColor)
   )
-  const allRules = cssContents.map((cssContent) => cssContent.rules.join('\n')).join('\n')
+  const linksRules = cssContents.map((cssContent) => cssContent.rules.join('\n')).join('\n')
+
+  const tableRowsForMembersRule = `
+/* Modify table rows that contain a link to the Members page but not the F2P page */
+/* :has() support is ramping up: https://caniuse.com/css-has */
+tr:has(a[href="/w/Members"]):not(:has(a[href="/w/Free-to-play"]))
+{
+  ${config.tableRowsForMembers.cssDeclaration}
+}`
 
   const allCssContent = [
-    allVariables,
-    allRules
+    linksVariables,
+    tableRowsForMembersRule,
+    linksRules
   ].join('\n')
 
-  generateCssFile('all.css', allCssContent)
+  generateCssFile(config.cssFilename, allCssContent)
 }
 
-generateCssFiles()
+generateCssFiles(config)
