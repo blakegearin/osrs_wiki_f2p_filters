@@ -1,0 +1,41 @@
+{
+  "name": "osrs_wiki_f2p_filters",
+  "version": "0.1.0",
+  "author": {
+    "name": "Blake Gearin",
+    "email": "hello@blakeg.me",
+    "url": "https://blakegearin.com"
+  },
+  "license": "MIT",
+  "description": "Filters for F2P users on the Old School RuneScape Wiki",
+  "homepage": "https://github.com/blakegearin/osrs_wiki_f2p_filters#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/blakegearin/osrs_wiki_f2p_filters.git"
+  },
+  "bugs": {
+    "url": "https://github.com/blakegearin/osrs_wiki_f2p_filters/issues"
+  },
+  "keywords": [
+    "osrs",
+    "old school runescape",
+    "wiki",
+    "f2p",
+    "free-to-play",
+    "members",
+    "filters"
+  ],
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "devDependencies": {
+    "standard": "^17.0.0"
+  },
+  "standard": {
+    "env": [
+      "browser",
+      "node"
+    ]
+  }
+}
