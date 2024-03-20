@@ -1,11 +1,11 @@
 /* ==UserStyle==
 @name         OSRS Wiki F2P Helper - F2P Links
 @namespace    oldschool.runescape.wiki
-@description  Eases the navigation of free-to-play users on Old School RuneScape Wiki.
+@description  Improves navigation of free-to-play users on Old School RuneScape Wiki.
 @author       Blake Gearin <hello@blakeg.me> (https://github.com/blakegearin)
 @homepageURL  https://github.com/blakegearin/osrs_wiki_f2p_helper
 @supportURL   https://github.com/blakegearin/osrs_wiki_f2p_helper/issues
-@version      0.2.0
+@version      0.3.0
 @license      MIT
 ==/UserStyle== */
 
@@ -2122,6 +2122,18 @@ a[href="/w/Zombie_trousers"]
 /* Link: "https://oldschool.runescape.wiki/w/Category:Free-to-play_items" */
 /* Batch: 3 of 3 */
 a[href="/w/Zuriel%27s_staff_(Last_Man_Standing)"]
+{
+  color: var(--f2p-link-color);
+}
+
+/* Category: Free-to-play minigames */
+/* Link: "https://oldschool.runescape.wiki/w/Category:Free-to-play_minigames" */
+/* Batch: 1 of 1 */
+a[href="/w/Category:Free-to-play_minigames"],
+a[href="/w/Castle_Wars"],
+a[href="/w/Clan_Wars"],
+a[href="/w/Emir%27s_Arena"],
+a[href="/w/Last_Man_Standing"]
 {
   color: var(--f2p-link-color);
 }

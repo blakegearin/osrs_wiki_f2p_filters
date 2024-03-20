@@ -1,3 +1,3 @@
-# OSRS Wiki F2P Filters
+# OSRS Wiki F2P Helper
 
-Filters for F2P users on the Old School RuneScape Wiki.
+Improves navigation of free-to-play users on the Old School RuneScape Wiki

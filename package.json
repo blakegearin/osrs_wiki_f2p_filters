@@ -1,13 +1,13 @@
 {
   "name": "osrs_wiki_f2p_helper",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "author": {
     "name": "Blake Gearin",
     "email": "hello@blakeg.me",
     "url": "https://blakegearin.com"
   },
   "license": "MIT",
-  "description": "Filters for F2P users on the Old School RuneScape Wiki",
+  "description": "Improves navigation of free-to-play users on the Old School RuneScape Wiki",
   "homepage": "https://github.com/blakegearin/osrs_wiki_f2p_helper#readme",
   "repository": {
     "type": "git",
@@ -23,7 +23,8 @@
     "f2p",
     "free-to-play",
     "members",
-    "filters"
+    "filters",
+    "userstyles"
   ],
   "main": "index.js",
   "scripts": {

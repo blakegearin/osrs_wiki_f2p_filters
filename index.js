@@ -6,7 +6,7 @@ const VERSION = packageJson.version
 const USER_STYLE_METADATA = (subtitle = null) => `/* ==UserStyle==
 @name         OSRS Wiki F2P Helper${subtitle ? ` - ${subtitle}` : ''}
 @namespace    oldschool.runescape.wiki
-@description  Eases the navigation of free-to-play users on Old School RuneScape Wiki.
+@description  Improves navigation of free-to-play users on Old School RuneScape Wiki.
 @author       Blake Gearin <hello@blakeg.me> (https://github.com/blakegearin)
 @homepageURL  https://github.com/blakegearin/osrs_wiki_f2p_helper
 @supportURL   https://github.com/blakegearin/osrs_wiki_f2p_helper/issues
@@ -34,10 +34,24 @@ const config = {
         }
       },
       categories: [
+        "Members' account builds",
         "Members' items",
-        "Members' account builds"
+        "Members' skills",
+        // Skills
+        'Agility',
+        'Construction',
+        'Farming',
+        'Fletching',
+        'Herblore',
+        'Hunter',
+        'Slayer',
+        'Thieving',
+        // Other
+        'Minigames',
+        'Minigame items'
       ]
     },
+    // F2P last so it can take precedence
     free_to_play: {
       ignore: false,
       subtitle: 'F2P Links',
@@ -54,6 +68,7 @@ const config = {
         'Free-to-play',
         'Free-to-play account builds',
         'Free-to-play items',
+        'Free-to-play minigames',
         'Free-to-play skills',
         'Free-to-play quests'
       ]
@@ -181,7 +196,7 @@ body.wgl-theme-browntown
 
 function generateCssFile (cssFilename, cssContent, subtitle = null) {
   fs.writeFile(
-    `output/${cssFilename}`,
+    `css/${cssFilename}`,
     [USER_STYLE_METADATA(subtitle), cssContent].join('\n'),
     (error) => {
       if (error) {
@@ -232,7 +247,7 @@ async function generateCssFiles (config) {
   const tableRowsForMembersRule = `
 /* Modify table rows that contain a link to the Members page but not the F2P page */
 /* :has() support is ramping up: https://caniuse.com/css-has */
-tr:has(a[href="/w/Members"]):not(:has(a[href="/w/Free-to-play"]))
+table:not(.infobox) tr:has(a[href="/w/Members"]):not(:has(a[href="/w/Free-to-play"]))
 {
   ${config.tableRowsForMembers.cssDeclaration}
 }`
