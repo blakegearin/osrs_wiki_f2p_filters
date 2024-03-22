@@ -34,8 +34,12 @@ const config = {
         }
       },
       categories: [
+        'Members',
         "Members' account builds",
         "Members' items",
+        "Members' locations",
+        "Members' monsters",
+        "Members' scenery",
         "Members' skills",
         // Skills
         'Agility',
@@ -47,6 +51,7 @@ const config = {
         'Slayer',
         'Thieving',
         // Other
+        'Dungeons',
         'Minigames',
         'Minigame items'
       ]
@@ -67,8 +72,12 @@ const config = {
       categories: [
         'Free-to-play',
         'Free-to-play account builds',
+        'Free-to-play dungeons',
         'Free-to-play items',
+        'Free-to-play locations',
         'Free-to-play minigames',
+        'Free-to-play monsters',
+        'Free-to-play scenery',
         'Free-to-play skills',
         'Free-to-play quests'
       ]
@@ -109,7 +118,10 @@ async function fetchCategoryMembersBatch (allTitles, cmtitle, cmcontinue = null)
 
 async function generatePageTitleSelectorsFromCategory (categoryName) {
   const cmtitle = `Category:${categoryName}`
-  const pageTitles = [cmtitle]
+  const pageTitles = [
+    cmtitle,
+    categoryName
+  ]
 
   await fetchCategoryMembersBatch(pageTitles, cmtitle)
 
@@ -140,13 +152,13 @@ async function generateCssRulesForCategory (linkColorVariableName, categoryName)
     const batchSelectors = pageTitleSelectors.slice(i, i + 1000)
 
     const batchCss = `
-/* Category: ${categoryName} */
-/* Link: "${categoryLink}" */
-/* Batch: ${batchNumber} of ${totalBatches} */
-${batchSelectors.join(',\n')}
-{
-  color: var(--${linkColorVariableName});
-}`
+  /* Category: ${categoryName} */
+  /* Link: "${categoryLink}" */
+  /* Batch: ${batchNumber} of ${totalBatches} */
+  ${batchSelectors.join(',\n  ')}
+  {
+    color: var(--${linkColorVariableName});
+  }`
 
     cssRules.push(batchCss)
     batchNumber++
@@ -179,25 +191,31 @@ function generateCssVariables (linkColors) {
   })
 
   return `body.wgl-theme-light
-{
-  ${lightVariables.join('\n  ')}
-}
+  {
+    ${lightVariables.join('\n  ')}
+  }
 
-body.wgl-theme-dark
-{
-  ${darkVariables.join('\n  ')}
-}
+  body.wgl-theme-dark
+  {
+    ${darkVariables.join('\n  ')}
+  }
 
-body.wgl-theme-browntown
-{
-  ${browntownVariables.join('\n  ')}
-}`
+  body.wgl-theme-browntown
+  {
+    ${browntownVariables.join('\n  ')}
+  }`
 }
 
 function generateCssFile (cssFilename, cssContent, subtitle = null) {
+  const wrappedCssContent = `
+@-moz-document domain("oldschool.runescape.wiki") {
+  ${cssContent}
+}
+`
+
   fs.writeFile(
     `css/${cssFilename}`,
-    [USER_STYLE_METADATA(subtitle), cssContent].join('\n'),
+    USER_STYLE_METADATA(subtitle) + wrappedCssContent,
     (error) => {
       if (error) {
         console.error('Error writing CSS file:', error)
@@ -245,12 +263,12 @@ async function generateCssFiles (config) {
   const linksRules = cssContents.map((cssContent) => cssContent.rules.join('\n')).join('\n')
 
   const tableRowsForMembersRule = `
-/* Modify table rows that contain a link to the Members page but not the F2P page */
-/* :has() support is ramping up: https://caniuse.com/css-has */
-table:not(.infobox) tr:has(a[href="/w/Members"]):not(:has(a[href="/w/Free-to-play"]))
-{
-  ${config.tableRowsForMembers.cssDeclaration}
-}`
+  /* Modify table rows that contain a link to the Members page but not the F2P page */
+  /* :has() support is ramping up: https://caniuse.com/css-has */
+  table:not(.infobox) tr:has(a[href="/w/Members"]):not(:has(a[href="/w/Free-to-play"]))
+  {
+    ${config.tableRowsForMembers.cssDeclaration}
+  }`
 
   const allCssContent = [
     linksVariables,

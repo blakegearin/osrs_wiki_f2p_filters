@@ -27,9 +27,7 @@
     "userstyles"
   ],
   "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+  "scripts": {},
   "devDependencies": {
     "standard": "^17.0.0"
   },
