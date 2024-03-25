@@ -1,12 +1,14 @@
 const fs = require('fs')
-const packageJson = require('./package.json')
+const path = require('path')
+
+const packageJson = require('../package.json')
 
 const VERSION = packageJson.version
 
 const USER_STYLE_METADATA = (subtitle = null) => `/* ==UserStyle==
 @name         OSRS Wiki F2P Helper${subtitle ? ` - ${subtitle}` : ''}
-@namespace    oldschool.runescape.wiki
-@description  Improves navigation of free-to-play users on Old School RuneScape Wiki.
+@namespace    https://blakegearin.com
+@description  Updates styling of free-to-play and members' content on the Old School RuneScape Wiki.
 @author       Blake Gearin <hello@blakeg.me> (https://github.com/blakegearin)
 @homepageURL  https://github.com/blakegearin/osrs_wiki_f2p_helper
 @supportURL   https://github.com/blakegearin/osrs_wiki_f2p_helper/issues
@@ -39,8 +41,15 @@ const config = {
         "Members' items",
         "Members' locations",
         "Members' monsters",
+        "Members' music",
+        "Members' NPCs",
+        "Members' prayers",
+        "Members' quests",
         "Members' scenery",
+        "Members' shops",
         "Members' skills",
+        "Members' spellbooks",
+        "Members' spells",
         // Skills
         'Agility',
         'Construction',
@@ -51,9 +60,12 @@ const config = {
         'Slayer',
         'Thieving',
         // Other
+        'Achievement diaries',
         'Dungeons',
         'Minigames',
-        'Minigame items'
+        'Minigame items',
+        'Miniquests',
+        'Raids'
       ]
     },
     // F2P last so it can take precedence
@@ -77,9 +89,17 @@ const config = {
         'Free-to-play locations',
         'Free-to-play minigames',
         'Free-to-play monsters',
+        'Free-to-play music',
+        'Free-to-play NPCs',
+        'Free-to-play prayers',
+        'Free-to-play quests',
         'Free-to-play scenery',
+        'Free-to-play shops',
         'Free-to-play skills',
-        'Free-to-play quests'
+        'Free-to-play spells',
+        // Other
+        'Events',
+        'Mechanics'
       ]
     }
   }
@@ -118,10 +138,7 @@ async function fetchCategoryMembersBatch (allTitles, cmtitle, cmcontinue = null)
 
 async function generatePageTitleSelectorsFromCategory (categoryName) {
   const cmtitle = `Category:${categoryName}`
-  const pageTitles = [
-    cmtitle,
-    categoryName
-  ]
+  const pageTitles = [cmtitle]
 
   await fetchCategoryMembersBatch(pageTitles, cmtitle)
 
@@ -135,7 +152,11 @@ async function generatePageTitleSelectorsFromCategory (categoryName) {
   }
 
   return pageTitles.map(
-    (pageTitle) => `a[href="/w/${escapePageTitle(pageTitle)}"]`
+    (pageTitle) => {
+      const escapedPageTitle = escapePageTitle(pageTitle)
+
+      return `a[href="/w/${escapedPageTitle}"]`
+    }
   )
 }
 
@@ -190,19 +211,21 @@ function generateCssVariables (linkColors) {
     browntownVariables.push(`--${linkColorVariableName}: ${linkColor.value.browntown};`)
   })
 
+  const lineBreaks = '\n    '
+
   return `body.wgl-theme-light
   {
-    ${lightVariables.join('\n  ')}
+    ${lightVariables.join(lineBreaks)}
   }
 
   body.wgl-theme-dark
   {
-    ${darkVariables.join('\n  ')}
+    ${darkVariables.join(lineBreaks)}
   }
 
   body.wgl-theme-browntown
   {
-    ${browntownVariables.join('\n  ')}
+    ${browntownVariables.join(lineBreaks)}
   }`
 }
 
@@ -212,9 +235,10 @@ function generateCssFile (cssFilename, cssContent, subtitle = null) {
   ${cssContent}
 }
 `
+  const cssDirectory = path.join(__dirname, 'css')
 
   fs.writeFile(
-    `css/${cssFilename}`,
+    path.join(cssDirectory, cssFilename),
     USER_STYLE_METADATA(subtitle) + wrappedCssContent,
     (error) => {
       if (error) {

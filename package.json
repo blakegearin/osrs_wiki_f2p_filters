@@ -26,8 +26,9 @@
     "filters",
     "userstyles"
   ],
-  "main": "index.js",
-  "scripts": {},
+  "scripts": {
+    "generate_userstyles": "node userstyles/index.js"
+  },
   "devDependencies": {
     "standard": "^17.0.0"
   },
