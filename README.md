@@ -14,8 +14,8 @@ Improves visibility of content types for free-to-play users on the Old School Ru
 
 ## Legal
 
-Logo is an adapted from the [OSRS Wiki logo](https://oldschool.runescape.wiki/w/File:Old_School_RuneScape_Wiki_logo_colour.svg) and licensed under [CC BY-NC-SA 3.0](https://creativecommons.org/licenses/by-nc-sa/3.0/).
+Logo is adapted from the [OSRS Wiki logo](https://oldschool.runescape.wiki/w/File:Old_School_RuneScape_Wiki_logo_colour.svg) and licensed under [CC BY-NC-SA 3.0](https://creativecommons.org/licenses/by-nc-sa/3.0/)
 
-RuneScape and RuneScape Old School are the trademarks of [Jagex Limited](http://jagex.com/).
+RuneScape and RuneScape Old School are the trademarks of [Jagex Limited](http://jagex.com/)
 
-Not affiliated with the Old School RuneScape Wiki, Jagex Limited, or any of their affiliations.
+Not affiliated with Old School RuneScape Wiki, Jagex Limited, or any of their affiliations
