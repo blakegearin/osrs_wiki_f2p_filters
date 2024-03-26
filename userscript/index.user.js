@@ -39,18 +39,25 @@
 
   log(QUIET, 'Starting')
 
-  function maybeInsertMembersIcon () {
+  function maybeInsertPageTitleIcon () {
     const infoboxTable = document.querySelector('table.infobox')
+    log(VERBOSE, 'infoboxTable', infoboxTable)
 
     const membersTableHeader = infoboxTable.querySelector('th a[title="Members"]')
+    log(VERBOSE, 'membersTableHeader', membersTableHeader)
+
     const membersTableRow = membersTableHeader.parentElement.parentElement
+    log(VERBOSE, 'membersTableRow', membersTableRow)
+
     const isMembers = membersTableRow.querySelector('td').innerText
+    log(VERBOSE, 'isMembers', isMembers)
 
     let iconType = ''
     let innerHtml = ''
 
     const userscriptIconId = USERSCRIPT_NAME.toLowerCase().replaceAll(' ', '_') + '_icon'
     const existingIcon = document.getElementById(userscriptIconId)
+    log(VERBOSE, 'existingIcon', existingIcon)
 
     observer.disconnect()
 
@@ -139,7 +146,7 @@
     for (const mutation of mutationsList) {
       if (mutation.type === 'childList') {
         log(TRACE, 'childList mutation detected')
-        maybeInsertMembersIcon(observer)
+        maybeInsertPageTitleIcon(observer)
       }
     }
   }
