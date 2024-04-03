@@ -14,6 +14,26 @@
 (function () {
   'use strict'
 
+  const DEFAULTS = {
+    pageTitle: {
+      icon: {
+        enabled: true,
+        before: true,
+        after: false
+      },
+      style: {
+        enabled: false,
+        uppercase: false,
+        strikethrough: true
+      },
+      color: {
+        enabled: false,
+        f2p: false,
+        members: true
+      }
+    }
+  }
+
   const SILENT = 0
   const QUIET = 1
   const INFO = 2
@@ -42,17 +62,18 @@
 
   const STAR_ICON_SVG = (color = 'currentColor') => `<svg width="100%" height="100%" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;"><g transform="matrix(1.19844,0,0,1.19844,-2.39688,-1.25597)"><path d="M12,1.1L14.474,8.712L22.026,8.712L15.878,13.186L18.165,21.022L12,16.362L5.835,21.022L8.122,13.186L2,8.712L9.552,8.712L12,1.1Z" fill="${color}"/></g></svg>`
 
-  function getFromLocalStorage (key, isBoolean = false) {
+  function getFromLocalStorage (key, defaultValue = null) {
     try {
       const prefixedKey = `${PARAMETERIZED_USERSCRIPT_NAME}_${key}`
       const rawItem = localStorage.getItem(prefixedKey)
-
-      if (!isBoolean) return rawItem
 
       if (rawItem === 'true') {
         return true
       } else if (rawItem === 'false') {
         return false
+      } else if (defaultValue !== null) {
+        setToLocalStorage(key, defaultValue)
+        return defaultValue
       } else {
         return null
       }
@@ -100,54 +121,23 @@
   function maybeInsertPageTitleIcon (observer, membersValue) {
     log(DEBUG, 'maybeInsertPageTitleIcon')
 
-    let iconPosition = getFromLocalStorage('pageTitleIconPosition')
-    log(INFO, 'iconPosition', iconPosition)
+    const pageTitleIconEnabled = getFromLocalStorage('pageTitleIconEnabled', DEFAULTS.pageTitle.icon.enabled)
+    log(INFO, 'pageTitleIconEnabled', pageTitleIconEnabled)
 
-    if (iconPosition === null) {
-      const defaultIconPosition = 'before'
+    const pageTitleIconBefore = getFromLocalStorage('pageTitleIconBefore', DEFAULTS.pageTitle.icon.before)
+    log(INFO, 'pageTitleIconBefore', pageTitleIconBefore)
 
-      setToLocalStorage('pageTitleIconPosition', defaultIconPosition)
-      iconPosition = defaultIconPosition
-    }
+    const pageTitleIconAfter = getFromLocalStorage('pageTitleIconAfter', DEFAULTS.pageTitle.icon.after)
+    log(INFO, 'pageTitleIconAfter', pageTitleIconAfter)
 
     let iconType = ''
     let innerHtml = ''
 
-    const userscriptIconId = PARAMETERIZED_USERSCRIPT_NAME + '_icon'
-    const existingIcon = document.getElementById(userscriptIconId)
-    log(VERBOSE, 'existingIcon', existingIcon)
-
-    if (iconPosition === 'none') {
-      log(DEBUG, 'Early exit due to iconPosition')
-
-      existingIcon?.remove()
-
-      return
-    }
-
-    observer.disconnect()
-
-    let newIcon
-
-    if (existingIcon?.classList.contains(iconPosition)) {
-      newIcon = existingIcon === null ? document.createElement('span') : existingIcon
-    } else {
-      existingIcon?.remove()
-      newIcon = document.createElement('span')
-    }
-
     switch (membersValue) {
       case 'Yes':
         log(DEBUG, 'membersValue is Yes')
+
         iconType = 'members'
-
-        if (existingIcon?.classList.contains(`${iconType}-icon`)) {
-          log(DEBUG, `Early exit because ${iconType} icon already exists`)
-
-          startObserving(observer)
-          return
-        }
-
         innerHtml =
           `<a
             href="/w/Members"
@@ -163,15 +153,8 @@
         break
       case 'No':
         log(DEBUG, 'membersValue is No')
+
         iconType = 'F2P'
-
-        if (existingIcon?.classList.contains(`${iconType}-icon`)) {
-          log(DEBUG, `Early exit because ${iconType} icon already exists`)
-
-          startObserving(observer)
-          return
-        }
-
         innerHtml =
           `<a
             href="/w/Free-to-play"
@@ -185,35 +168,56 @@
             >
           </a>`
         break
-      default:
-        log(DEBUG, 'membersValue is not Yes or No')
-
-        if (existingIcon !== null) existingIcon.remove()
-
-        startObserving(observer)
-        return
     }
-
-    newIcon.id = userscriptIconId
-    newIcon.classList.add(`${iconType}-icon`, iconPosition)
-    newIcon.style.textDecoration = 'none'
-    newIcon.innerHTML = innerHtml
 
     const pageHeading = document.querySelector('h1#firstHeading')
 
-    if (iconPosition === 'before') {
-      newIcon.style.marginRight = '8px'
+    observer.disconnect()
 
-      const firstChild = pageHeading.firstChild
-      pageHeading.insertBefore(newIcon, firstChild)
-    } else if (iconPosition === 'after') {
-      newIcon.style.marginLeft = '8px'
+    let existingIconSelector = `.${iconType}-icon.before`
+    if (pageTitleIconEnabled && pageTitleIconBefore) {
+      if (document.querySelector(existingIconSelector)) {
+        log(VERBOSE, `Early exit because ${existingIconSelector} icon already exists`)
+      } else {
+        const newIcon = document.createElement('span')
 
-      pageHeading.appendChild(newIcon)
+        newIcon.classList.add(...existingIconSelector.split('.').filter(Boolean))
+        newIcon.style.textDecoration = 'none'
+        newIcon.innerHTML = innerHtml
+
+        newIcon.style.marginRight = '8px'
+
+        const firstChild = pageHeading.firstChild
+        pageHeading.insertBefore(newIcon, firstChild)
+
+        // Extra newlines and spaces make strikethrough look weird
+        pageHeading.innerHTML = pageHeading.innerHTML.replaceAll(/(<\/span>|<img[^>]*>|<a[^>]*>)\s*/g, '$1')
+      }
+    } else {
+      document.querySelector(existingIconSelector)?.remove()
     }
 
-    // Extra newlines and spaces make strikethrough look weird
-    pageHeading.innerHTML = pageHeading.innerHTML.replaceAll(/(<\/span>|<img[^>]*>|<a[^>]*>)\s*/g, '$1')
+    existingIconSelector = `.${iconType}-icon.after`
+    if (pageTitleIconEnabled && pageTitleIconAfter) {
+      if (document.querySelector(existingIconSelector)) {
+        log(VERBOSE, `Early exit because ${existingIconSelector} icon already exists`)
+      } else {
+        const newIcon = document.createElement('span')
+
+        newIcon.classList.add(...existingIconSelector.split('.').filter(Boolean))
+        newIcon.style.textDecoration = 'none'
+        newIcon.innerHTML = innerHtml
+
+        newIcon.style.marginLeft = '8px'
+
+        pageHeading.appendChild(newIcon)
+
+        // Extra newlines and spaces make strikethrough look weird
+        pageHeading.innerHTML = pageHeading.innerHTML.replaceAll(/(<\/span>|<img[^>]*>|<a[^>]*>)\s*/g, '$1')
+      }
+    } else {
+      document.querySelector(existingIconSelector)?.remove()
+    }
 
     startObserving(observer)
 
@@ -223,36 +227,32 @@
   function maybeUpdatePageTitleStyle (observer, membersValue) {
     log(DEBUG, 'maybeInsertPageTitleIcon')
 
-    let uppercase = getFromLocalStorage('pageTitleStyleUppercase', true)
+    const pageTitleStyleEnabled = getFromLocalStorage('pageTitleStyleEnabled', DEFAULTS.pageTitle.style.enabled)
+    log(INFO, 'pageTitleStyleEnabled', pageTitleStyleEnabled)
 
-    // Default to false
-    if (uppercase === null) uppercase = false
+    const styleUppercase = getFromLocalStorage('pageTitleStyleUppercase', DEFAULTS.pageTitle.style.uppercase)
+    log(INFO, 'styleUppercase', styleUppercase)
 
-    let strikethrough = getFromLocalStorage('pageTitleStyleStrikethrough', true)
-
-    // Default to false
-    if (strikethrough === null) strikethrough = false
+    const styleStrikethrough = getFromLocalStorage('pageTitleStyleStrikethrough', DEFAULTS.pageTitle.style.strikethrough)
+    log(INFO, 'styleStrikethrough', styleStrikethrough)
 
     const pageTitleStyle = {
-      uppercase,
-      strikethrough
+      uppercase: styleUppercase,
+      strikethrough: styleStrikethrough
     }
     log(DEBUG, 'pageTitleStyle', pageTitleStyle)
 
-    const pageTitle = document.querySelector('.mw-page-title-main') || document.querySelector('.mw-first-heading')
-    log(VERBOSE, 'pageTitle', pageTitle)
+    const pageTitleColorEnabled = getFromLocalStorage('pageTitleColorEnabled', DEFAULTS.pageTitle.color.enabled)
+    log(INFO, 'pageTitleColorEnabledP', pageTitleColorEnabled)
 
-    let pageTitleColorF2P = getFromLocalStorage('pageTitleColorF2P', true)
+    const pageTitleColorF2P = getFromLocalStorage('pageTitleColorF2P', DEFAULTS.pageTitle.color.f2p)
     log(INFO, 'pageTitleColorF2P', pageTitleColorF2P)
 
-    // Default to false
-    if (pageTitleColorF2P === null) pageTitleColorF2P = false
-
-    let pageTitleColorMembers = getFromLocalStorage('pageTitleColorMembers', true)
+    const pageTitleColorMembers = getFromLocalStorage('pageTitleColorMembers', DEFAULTS.pageTitle.color.members)
     log(INFO, 'pageTitleColorMembers', pageTitleColorMembers)
 
-    // Default to true
-    if (pageTitleColorMembers === null) pageTitleColorMembers = true
+    const pageTitle = document.querySelector('.mw-page-title-main') || document.querySelector('.mw-first-heading')
+    log(VERBOSE, 'pageTitle', pageTitle)
 
     observer.disconnect()
 
@@ -260,16 +260,16 @@
       case 'Yes':
         log(DEBUG, 'membersValue is Yes')
 
-        pageTitle.style.textDecoration = pageTitleStyle.strikethrough ? 'line-through' : 'none'
-        pageTitle.style.textTransform = pageTitleStyle.uppercase ? 'uppercase' : 'none'
+        pageTitle.style.textDecoration = (pageTitleStyleEnabled && pageTitleStyle.strikethrough) ? 'line-through' : 'none'
+        pageTitle.style.textTransform = (pageTitleStyleEnabled && pageTitleStyle.uppercase) ? 'uppercase' : 'none'
 
-        pageTitle.style.color = pageTitleColorMembers ? 'var(--member-link-color, var(--text-color))' : 'initial'
+        pageTitle.style.color = (pageTitleColorEnabled && pageTitleColorMembers) ? 'var(--member-link-color, var(--text-color))' : 'initial'
 
         break
       case 'No':
         log(DEBUG, 'membersValue is No')
 
-        pageTitle.style.color = pageTitleColorF2P ? 'var(--f2p-link-color, var(--text-color))' : 'initial'
+        pageTitle.style.color = (pageTitleColorEnabled && pageTitleColorF2P) ? 'var(--f2p-link-color, var(--text-color))' : 'initial'
 
         break
       default:
@@ -383,19 +383,34 @@
 
     const panelWidth = document.querySelector('#p-personal').offsetWidth || 0
 
+    const pageTitleIconEnabled = getFromLocalStorage('pageTitleIconEnabled')
+    log(INFO, 'pageTitleIconEnabled', pageTitleIconEnabled)
+
     const iconPosition = getFromLocalStorage('pageTitleIconPosition')
     log(INFO, 'iconPosition', iconPosition)
 
-    const pageTitleStyleUppercase = getFromLocalStorage('pageTitleStyleUppercase', true)
+    const pageTitleIconBefore = getFromLocalStorage('pageTitleIconBefore')
+    log(INFO, 'pageTitleIconBefore', pageTitleIconBefore)
+
+    const pageTitleIconAfter = getFromLocalStorage('pageTitleIconAfter')
+    log(INFO, 'pageTitleIconAfter', pageTitleIconAfter)
+
+    const pageTitleStyleEnabled = getFromLocalStorage('pageTitleStyleEnabled')
+    log(INFO, 'pageTitleStyleEnabled', pageTitleStyleEnabled)
+
+    const pageTitleStyleUppercase = getFromLocalStorage('pageTitleStyleUppercase')
     log(INFO, 'pageTitleStyleUppercase', pageTitleStyleUppercase)
 
-    const pageTitleStyleStrikethrough = getFromLocalStorage('pageTitleStyleStrikethrough', true)
+    const pageTitleStyleStrikethrough = getFromLocalStorage('pageTitleStyleStrikethrough')
     log(INFO, 'pageTitleStyleStrikethrough', pageTitleStyleStrikethrough)
 
-    const pageTitleColorF2P = getFromLocalStorage('pageTitleColorF2P', true)
+    const pageTitleColorEnabled = getFromLocalStorage('pageTitleColorEnabled')
+    log(INFO, 'pageTitleColorEnabled', pageTitleColorEnabled)
+
+    const pageTitleColorF2P = getFromLocalStorage('pageTitleColorF2P')
     log(INFO, 'pageTitleColorF2P', pageTitleColorF2P)
 
-    const pageTitleColorMembers = getFromLocalStorage('pageTitleColorMembers', true)
+    const pageTitleColorMembers = getFromLocalStorage('pageTitleColorMembers')
     log(INFO, 'pageTitleColorMembers', pageTitleColorMembers)
 
     f2pHelperPopup.innerHTML = `
@@ -408,7 +423,7 @@
           position: absolute;
           z-index: 1;
           margin-top: 9px;
-          width: 300px;
+          width: 320px;
         "
       >
         <div
@@ -465,8 +480,8 @@
             class="oo-ui-clippableElement-clippable oo-ui-popupWidget-body"
             style="
               height: auto;
-              width: 298px;
-              max-width: 298px;
+              width: 318px;
+              max-width: 318px;
               line-height: 1.42857143em;
             "
           >
@@ -477,59 +492,49 @@
                     <fieldset class="oo-ui-layout oo-ui-labelElement oo-ui-fieldsetLayout">
                       <legend class="oo-ui-fieldsetLayout-header">
                         <span class="oo-ui-labelElement-label">
-                          Page title icon (F2P & Members)
+                          Page title icons (F2P & Members)
+                        </span>
+
+                        <span class="oo-ui-fieldLayout-field">
+                          <span class="oo-ui-widget oo-ui-widget-enabled oo-ui-inputWidget oo-ui-checkboxInputWidget">
+                            <input
+                              type="checkbox"
+                              tabindex="0"
+                              name="pageTitleIconEnabled"
+                              class="oo-ui-inputWidget-input"
+                              ${pageTitleIconEnabled ? 'checked' : ''}
+                            >
+                            <span class="oo-ui-checkboxInputWidget-checkIcon oo-ui-widget oo-ui-widget-enabled oo-ui-iconElement-icon oo-ui-icon-check oo-ui-iconElement oo-ui-labelElement-invisible oo-ui-iconWidget oo-ui-image-invert"></span>
+                          </span>
                         </span>
                       </legend>
 
-                      <div class="oo-ui-fieldsetLayout-group">
+                      <div class="oo-ui-fieldsetLayout-group pageTitleIconEnabled" style="display: ${pageTitleIconEnabled ? 'initial' : 'none'}">
                         <div class="oo-ui-widget oo-ui-widget-enabled">
                           <div class="mw-htmlform-field-HTMLRadioField oo-ui-layout oo-ui-fieldLayout oo-ui-fieldLayout-align-top">
                             <div class="oo-ui-fieldLayout-body">
                               <span class="oo-ui-fieldLayout-header">
                                 <label class="oo-ui-labelElement-label"></label>
                               </span>
+
                               <div class="oo-ui-fieldLayout-field">
                                 <div
                                   id="f2p-helper-page-title-icon-position"
                                   class="oo-ui-widget oo-ui-widget-enabled oo-ui-inputWidget oo-ui-radioSelectInputWidget"
                                 >
-                                  <div class="oo-ui-layout oo-ui-labelElement oo-ui-fieldLayout oo-ui-fieldLayout-align-inline">
+
+                                  <div class="oo-ui-fieldLayout oo-ui-fieldLayout-align-inline oo-ui-labelElement oo-ui-layout">
                                     <div class="oo-ui-fieldLayout-body">
                                       <span class="oo-ui-fieldLayout-field">
-                                        <span class="oo-ui-widget oo-ui-widget-enabled oo-ui-inputWidget oo-ui-radioInputWidget">
+                                        <span class="oo-ui-widget oo-ui-widget-enabled oo-ui-inputWidget oo-ui-checkboxInputWidget">
                                           <input
-                                            type="radio"
+                                            type="checkbox"
                                             tabindex="0"
-                                            name="f2p-helper-page-title-icon-position"
-                                            value="none"
+                                            name="pageTitleIconBefore"
                                             class="oo-ui-inputWidget-input"
-                                            ${iconPosition === 'none' ? 'checked' : ''}
+                                            ${pageTitleIconBefore ? 'checked' : ''}
                                           />
-                                          <span></span>
-                                        </span>
-                                      </span>
-
-                                      <span class="oo-ui-fieldLayout-header">
-                                        <label class="oo-ui-labelElement-label">
-                                          None
-                                        </label>
-                                      </span>
-                                    </div>
-                                  </div>
-
-                                  <div class="oo-ui-layout oo-ui-labelElement oo-ui-fieldLayout oo-ui-fieldLayout-align-inline">
-                                    <div class="oo-ui-fieldLayout-body">
-                                      <span class="oo-ui-fieldLayout-field">
-                                        <span class="oo-ui-widget oo-ui-widget-enabled oo-ui-inputWidget oo-ui-radioInputWidget">
-                                          <input
-                                            type="radio"
-                                            tabindex="0"
-                                            name="f2p-helper-page-title-icon-position"
-                                            value="before"
-                                            class="oo-ui-inputWidget-input"
-                                            ${iconPosition === 'before' ? 'checked' : ''}
-                                          />
-                                          <span></span>
+                                          <span class="oo-ui-checkboxInputWidget-checkIcon oo-ui-widget oo-ui-widget-enabled oo-ui-iconElement-icon oo-ui-icon-check oo-ui-iconElement oo-ui-labelElement-invisible oo-ui-iconWidget oo-ui-image-invert"></span>
                                         </span>
                                       </span>
 
@@ -548,19 +553,18 @@
                                     </div>
                                   </div>
 
-                                  <div class="oo-ui-layout oo-ui-labelElement oo-ui-fieldLayout oo-ui-fieldLayout-align-inline">
+                                  <div class="oo-ui-fieldLayout oo-ui-fieldLayout-align-inline oo-ui-labelElement oo-ui-layout">
                                     <div class="oo-ui-fieldLayout-body">
                                       <span class="oo-ui-fieldLayout-field">
-                                        <span class="oo-ui-widget oo-ui-widget-enabled oo-ui-inputWidget oo-ui-radioInputWidget">
+                                        <span class="oo-ui-widget oo-ui-widget-enabled oo-ui-inputWidget oo-ui-checkboxInputWidget">
                                           <input
-                                            type="radio"
+                                            type="checkbox"
                                             tabindex="0"
-                                            name="f2p-helper-page-title-icon-position"
-                                            value="after"
+                                            name="pageTitleIconAfter"
                                             class="oo-ui-inputWidget-input"
-                                            ${iconPosition === 'after' ? 'checked' : ''}
+                                            ${pageTitleIconAfter ? 'checked' : ''}
                                           />
-                                          <span></span>
+                                          <span class="oo-ui-checkboxInputWidget-checkIcon oo-ui-widget oo-ui-widget-enabled oo-ui-iconElement-icon oo-ui-icon-check oo-ui-iconElement oo-ui-labelElement-invisible oo-ui-iconWidget oo-ui-image-invert"></span>
                                         </span>
                                       </span>
 
@@ -578,6 +582,7 @@
                                       </span>
                                     </div>
                                   </div>
+
                                 </div>
                               </div>
                             </div>
@@ -591,11 +596,23 @@
                     <fieldset class="oo-ui-layout oo-ui-labelElement oo-ui-fieldsetLayout">
                       <legend class="oo-ui-fieldsetLayout-header">
                         <span class="oo-ui-labelElement-label">
-                          Page title style (Members)
+                          Page title text (Members)
                         </span>
+
+                        <span class="oo-ui-fieldLayout-field">
+                          <span class="oo-ui-widget oo-ui-widget-enabled oo-ui-inputWidget oo-ui-checkboxInputWidget">
+                            <input
+                              type="checkbox"
+                              tabindex="0"
+                              name="pageTitleStyleEnabled"
+                              class="oo-ui-inputWidget-input"
+                              ${pageTitleStyleEnabled ? 'checked' : ''}
+                            >
+                            <span class="oo-ui-checkboxInputWidget-checkIcon oo-ui-widget oo-ui-widget-enabled oo-ui-iconElement-icon oo-ui-icon-check oo-ui-iconElement oo-ui-labelElement-invisible oo-ui-iconWidget oo-ui-image-invert"></span>
+                          </span>
                       </legend>
 
-                      <div class="oo-ui-fieldsetLayout-group">
+                      <div class="oo-ui-fieldsetLayout-group pageTitleStyleEnabled" style="display: ${pageTitleStyleEnabled ? 'initial' : 'none'}">
                         <div class="oo-ui-widget oo-ui-widget-enabled">
                           <div class="mw-htmlform-field-HTMLRadioField oo-ui-layout oo-ui-fieldLayout oo-ui-fieldLayout-align-top">
                             <div class="oo-ui-fieldLayout-body">
@@ -674,22 +691,22 @@
                         <span class="oo-ui-labelElement-label">
                           Page title color
                         </span>
+
+                        <span class="oo-ui-fieldLayout-field">
+                          <span class="oo-ui-widget oo-ui-widget-enabled oo-ui-inputWidget oo-ui-checkboxInputWidget">
+                            <input
+                              type="checkbox"
+                              tabindex="0"
+                              name="pageTitleColorEnabled"
+                              class="oo-ui-inputWidget-input"
+                              ${pageTitleColorEnabled ? 'checked' : ''}
+                            >
+                            <span class="oo-ui-checkboxInputWidget-checkIcon oo-ui-widget oo-ui-widget-enabled oo-ui-iconElement-icon oo-ui-icon-check oo-ui-iconElement oo-ui-labelElement-invisible oo-ui-iconWidget oo-ui-image-invert"></span>
+                          </span>
+                        </span>
                       </legend>
 
-                      <div class="oo-ui-fieldLayout-header"">
-                        <label class="oo-ui-widget oo-ui-widget-enabled oo-ui-labelElement-label oo-ui-labelElement oo-ui-labelWidget">
-                          Requires
-                          <a
-                            href="https://github.com/blakegearin/osrs_wiki_f2p_helper/blob/main/userstyles/css/osrs_wiki_f2p_helper.user.css"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            userscript
-                          </a>
-                        </label>
-                      </div>
-
-                      <div class="oo-ui-fieldsetLayout-group">
+                      <div class="oo-ui-fieldsetLayout-group pageTitleColorEnabled" style="display: ${pageTitleColorEnabled ? 'initial' : 'none'}">
                         <div class="oo-ui-widget oo-ui-widget-enabled">
                           <div class="mw-htmlform-field-HTMLRadioField oo-ui-layout oo-ui-fieldLayout oo-ui-fieldLayout-align-top">
                             <div class="oo-ui-fieldLayout-body">
@@ -774,15 +791,25 @@
 
     const f2pHelperPopupStyle = document.createElement('style')
     f2pHelperPopupStyle.textContent = `
+      #wgl-f2p-helper-popup .oo-ui-fieldsetLayout-header .oo-ui-fieldLayout-field
+      {
+        float: right !important;
+      }
+
       #wgl-f2p-helper-popup .oo-ui-panelLayout-padded
       {
         padding: 12px 16px 16px;
         padding-bottom: 6px;
       }
 
-      #wgl-f2p-helper-popup .mw-echo-ui-notificationItemWidget-content-message-header-wrapper > :last-child
+      #wgl-f2p-helper-popup .mw-echo-ui-notificationItemWidget-content-message
       {
-        padding-bottom: 12px;
+        padding-right: 0px;
+      }
+
+      #wgl-f2p-helper-popup .mw-echo-ui-notificationItemWidget-content-message-header-wrapper > :not(:first-child)
+      {
+        padding-top: 0px;
       }
 
       #wgl-f2p-helper-popup .oo-ui-fieldsetLayout
@@ -900,7 +927,7 @@
       #wgl-f2p-helper-popup .oo-ui-fieldsetLayout.oo-ui-labelElement > .oo-ui-fieldsetLayout-header > .oo-ui-labelElement-label
       {
         display: inline-block;
-        margin-bottom: 8px;
+        margin-bottom: 10px;
         font-size: 1.14285714em;
         font-weight: bold;
       }
@@ -1258,26 +1285,16 @@
     `
 
     const head = document.getElementsByTagName('head')[0]
-    head.appendChild(f2pHelperPopupStyle)
 
     observer.disconnect()
+
+    head.appendChild(f2pHelperPopupStyle)
 
     const body = document.getElementsByTagName('body')[0]
     log(VERBOSE, 'body', body)
 
     if (body === null) return togglePopup
     body.appendChild(f2pHelperPopup)
-
-    const iconPositionRadioButtons = document.querySelectorAll('#f2p-helper-page-title-icon-position input[type="radio"]')
-
-    iconPositionRadioButtons.forEach((radioButton) => {
-      radioButton.addEventListener(
-        'change',
-        (event) => {
-          setToLocalStorage('pageTitleIconPosition', event.target.value)
-        }
-      )
-    })
 
     const styleCheckboxes = document.querySelectorAll('#f2p-helper-page input[type="checkbox"]')
 
@@ -1286,6 +1303,17 @@
         'change',
         (event) => {
           setToLocalStorage(event.target.name, event.target.checked)
+
+          if (event.target.name.includes('Enabled')) {
+            const elementSelector = `.${event.target.name}`
+            const element = document.querySelector(elementSelector)
+
+            if (element) {
+              element.style.display = event.target.checked ? 'initial' : 'none'
+            } else {
+              logError(`Element not found: ${elementSelector}`)
+            }
+          }
         }
       )
     })
