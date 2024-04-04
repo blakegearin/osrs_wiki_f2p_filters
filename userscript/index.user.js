@@ -45,6 +45,7 @@
 
   const USERSCRIPT_NAME = 'OSRS Wiki F2P Helper'
   const PARAMETERIZED_USERSCRIPT_NAME = USERSCRIPT_NAME.toLowerCase().replaceAll(' ', '_')
+  const STAR_ICON_SVG = (color = 'currentColor') => `<svg width="100%" height="100%" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;"><g transform="matrix(1.19844,0,0,1.19844,-2.39688,-1.25597)"><path d="M12,1.1L14.474,8.712L22.026,8.712L15.878,13.186L18.165,21.022L12,16.362L5.835,21.022L8.122,13.186L2,8.712L9.552,8.712L12,1.1Z" fill="${color}"/></g></svg>`
 
   function log (level, message, variable = -1) {
     if (CURRENT_LOG_LEVEL < level) return
@@ -58,9 +59,7 @@
     if (variable) console.log(variable)
   }
 
-  log(QUIET, 'Starting')
-
-  const STAR_ICON_SVG = (color = 'currentColor') => `<svg width="100%" height="100%" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;"><g transform="matrix(1.19844,0,0,1.19844,-2.39688,-1.25597)"><path d="M12,1.1L14.474,8.712L22.026,8.712L15.878,13.186L18.165,21.022L12,16.362L5.835,21.022L8.122,13.186L2,8.712L9.552,8.712L12,1.1Z" fill="${color}"/></g></svg>`
+  log(QUIET, 'Running')
 
   function getFromLocalStorage (key, defaultValue = null) {
     try {
@@ -93,6 +92,8 @@
   }
 
   function getMembersValue () {
+    log(DEBUG, 'getMembersValue')
+
     const infoboxTable = document.querySelector('table.infobox')
     log(VERBOSE, 'infoboxTable', infoboxTable)
 
@@ -330,7 +331,7 @@
   }
 
   function closePopupOnOutsideClick (event) {
-    log(INFO, 'closePopupOnOutsideClick')
+    log(DEBUG, 'closePopupOnOutsideClick')
 
     const popup = document.querySelector('#wgl-f2p-helper-popup > div')
     const targetElement = event.target
@@ -1324,6 +1325,16 @@
     return togglePopup
   }
 
+  function startObserving (observer) {
+    observer.observe(
+      document.body,
+      {
+        childList: true,
+        subtree: true
+      }
+    )
+  }
+
   const mutationCallback = function (mutationsList, observer) {
     for (const mutation of mutationsList) {
       if (mutation.type === 'childList') {
@@ -1339,16 +1350,5 @@
   }
 
   const observer = new MutationObserver(mutationCallback)
-
-  function startObserving (observer) {
-    observer.observe(
-      document.body,
-      {
-        childList: true,
-        subtree: true
-      }
-    )
-  }
-
   startObserving(observer)
 })()
