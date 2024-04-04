@@ -31,6 +31,13 @@
         f2p: false,
         members: true
       }
+    },
+    link: {
+      colors: {
+        enabled: true,
+        f2p: true,
+        members: true
+      }
     }
   }
 
@@ -44,7 +51,9 @@
   const CURRENT_LOG_LEVEL = QUIET
 
   const USERSCRIPT_NAME = 'OSRS Wiki F2P Helper'
+  const WIKI_URL = 'https://oldschool.runescape.wiki'
   const PARAMETERIZED_USERSCRIPT_NAME = USERSCRIPT_NAME.toLowerCase().replaceAll(' ', '_')
+  const STAR_ICON_SVG = (color = 'currentColor') => `<svg width="100%" height="100%" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;"><g transform="matrix(1.19844,0,0,1.19844,-2.39688,-1.25597)"><path d="M12,1.1L14.474,8.712L22.026,8.712L15.878,13.186L18.165,21.022L12,16.362L5.835,21.022L8.122,13.186L2,8.712L9.552,8.712L12,1.1Z" fill="${color}"/></g></svg>`
 
   function log (level, message, variable = -1) {
     if (CURRENT_LOG_LEVEL < level) return
@@ -58,32 +67,41 @@
     if (variable) console.log(variable)
   }
 
-  log(QUIET, 'Starting')
+  log(QUIET, 'Running')
 
-  const STAR_ICON_SVG = (color = 'currentColor') => `<svg width="100%" height="100%" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;"><g transform="matrix(1.19844,0,0,1.19844,-2.39688,-1.25597)"><path d="M12,1.1L14.474,8.712L22.026,8.712L15.878,13.186L18.165,21.022L12,16.362L5.835,21.022L8.122,13.186L2,8.712L9.552,8.712L12,1.1Z" fill="${color}"/></g></svg>`
+  function getFromLocalStorage (key) {
+    log(DEBUG, 'getFromLocalStorage')
 
-  function getFromLocalStorage (key, defaultValue = null) {
     try {
       const prefixedKey = `${PARAMETERIZED_USERSCRIPT_NAME}_${key}`
-      const rawItem = localStorage.getItem(prefixedKey)
-
-      if (rawItem === 'true') {
-        return true
-      } else if (rawItem === 'false') {
-        return false
-      } else if (defaultValue !== null) {
-        setToLocalStorage(key, defaultValue)
-        return defaultValue
-      } else {
-        return null
-      }
+      return localStorage.getItem(prefixedKey)
     } catch (error) {
       logError(`Error retrieving data to Local Storage: ${error}`)
       return null
     }
   }
 
+  function getBooleanFromLocalStorage (key, defaultValue = null) {
+    log(DEBUG, 'getBooleanFromLocalStorage')
+
+    const value = getFromLocalStorage(key)
+
+    if (value === 'true') {
+      return true
+    } else if (value === 'false') {
+      return false
+    } else if (defaultValue !== null) {
+      setToLocalStorage(key, defaultValue)
+      return defaultValue
+    } else {
+      logError(`getBooleanFromLocalStorage received unknown value | key: ${key} | value: ${value}`)
+      return null
+    }
+  }
+
   function setToLocalStorage (key, value) {
+    log(DEBUG, 'setToLocalStorage')
+
     try {
       const prefixedKey = `${PARAMETERIZED_USERSCRIPT_NAME}_${key}`
       localStorage.setItem(prefixedKey, value)
@@ -92,7 +110,223 @@
     }
   }
 
+  async function fetchCategoryMembersBatch (allTitles, cmtitle, cmcontinue = null) {
+    log(DEBUG, 'fetchCategoryMembersBatch')
+
+    const params = {
+      format: 'json',
+      action: 'query',
+      cmlimit: 500,
+      list: 'categorymembers',
+      cmprop: 'title',
+      cmtitle
+    }
+
+    if (cmcontinue) params.cmcontinue = cmcontinue
+
+    let apiUrl = WIKI_URL + '/api.php?origin=*'
+    Object.keys(params).forEach((key) => { apiUrl += `&${key}=${params[key]}` })
+
+    try {
+      const response = await fetch(apiUrl)
+      const data = await response.json()
+
+      allTitles.push(...data.query.categorymembers.map((page) => page.title))
+
+      if (data.continue) await fetchCategoryMembersBatch(allTitles, cmtitle, data.continue.cmcontinue)
+    } catch (error) {
+      console.log(error)
+    }
+
+    return allTitles
+  }
+
+  async function generatePageTitleRegExpsFromCategory (categoryName) {
+    log(DEBUG, 'generatePageTitleRegExpsFromCategory')
+
+    const cmtitle = `Category:${categoryName}`
+    const pageTitles = [cmtitle]
+
+    await fetchCategoryMembersBatch(pageTitles, cmtitle)
+
+    return pageTitles.map(
+      (pageTitle) => {
+        return encodeURIComponent(pageTitle)
+          .replaceAll(/'/g, '%27')
+          .replaceAll('%20', '_')
+          .replaceAll('%2F', '/')
+          .replaceAll('%2C', ',')
+          .replaceAll('%3A', ':')
+      }
+    )
+  }
+
+  async function generatePageTitleRegExpsForCategories (categories) {
+    log(DEBUG, 'generatePageTitleRegExpsForCategories')
+
+    const regExpsPromises = categories.map(
+      async (categoryName) => await generatePageTitleRegExpsFromCategory(categoryName)
+    )
+
+    return await Promise.all(regExpsPromises)
+  }
+
+  async function savePageTitleRegExpsForCategories ({ key, categories }) {
+    log(DEBUG, 'savePageTitleRegExpsForCategories')
+
+    const regExpsForCategories = await generatePageTitleRegExpsForCategories(categories)
+    log(VERBOSE, 'regExpsForCategories', regExpsForCategories)
+
+    const flattenedRegExps = [].concat(...regExpsForCategories)
+    log(QUIET, 'flattenedRegExps', flattenedRegExps)
+
+    const jsonRegExps = JSON.stringify(
+      flattenedRegExps.map((regExp) => regExp.toString())
+    )
+
+    setToLocalStorage(key, jsonRegExps)
+
+    return jsonRegExps
+  }
+
+  async function maybeUpdateLinks (liveUpdate = false) {
+    log(QUIET, 'maybeUpdateLinks')
+
+    const categories = {
+      members: {
+        key: 'memberPageTitles',
+        categories: [
+          'Members',
+          "Members' account builds",
+          "Members' items",
+          "Members' locations",
+          "Members' monsters",
+          "Members' music",
+          "Members' NPCs",
+          "Members' prayers",
+          "Members' quests",
+          "Members' scenery",
+          "Members' shops",
+          "Members' skills",
+          "Members' spellbooks",
+          "Members' spells",
+          // Skills
+          'Agility',
+          'Construction',
+          'Farming',
+          'Fletching',
+          'Herblore',
+          'Hunter',
+          'Slayer',
+          'Thieving',
+          // Other
+          'Achievement diaries',
+          'Dungeons',
+          'Minigames',
+          'Minigame items',
+          'Miniquests',
+          'Raids'
+        ]
+      },
+      // F2P last so it can take precedence
+      f2p: {
+        key: 'f2pPageTitles',
+        categories: [
+          'Free-to-play',
+          'Free-to-play account builds',
+          'Free-to-play dungeons',
+          'Free-to-play items',
+          'Free-to-play locations',
+          'Free-to-play minigames',
+          'Free-to-play monsters',
+          'Free-to-play music',
+          'Free-to-play NPCs',
+          'Free-to-play prayers',
+          'Free-to-play quests',
+          'Free-to-play scenery',
+          'Free-to-play shops',
+          'Free-to-play skills',
+          'Free-to-play spells',
+          // Other
+          'Events',
+          'Mechanics'
+        ]
+      }
+    }
+
+    log(DEBUG, 'maybeSavePageTitleRegExpsForCategories')
+
+    const linkColorsEnabled = getBooleanFromLocalStorage('linkColorsEnabled', DEFAULTS.link.colors.enabled)
+    log(INFO, 'linkColorsEnabled', linkColorsEnabled)
+
+    const linkColorsF2P = getBooleanFromLocalStorage('linkColorsF2P', DEFAULTS.link.colors.f2p)
+    log(INFO, 'linkColorsF2P', linkColorsF2P)
+
+    const linkColorsMembers = getBooleanFromLocalStorage('linkColorsMembers', DEFAULTS.link.colors.members)
+    log(INFO, 'linkColorsMembers', linkColorsMembers)
+
+    if (!liveUpdate && !linkColorsEnabled) return
+
+    if (linkColorsEnabled) {
+      Object.values(categories).forEach(async (categoryType) => {
+        const categoryPageTitles = getFromLocalStorage(categoryType.key)
+        log(VERBOSE, 'categoryPageTitles', categoryPageTitles)
+
+        if (categoryPageTitles === null) {
+          await savePageTitleRegExpsForCategories(categoryType)
+        } else {
+          log(DEBUG, `Page title regexps for ${categoryType.key} already exist`)
+        }
+      })
+    }
+
+    const memberPageTitles = JSON.parse(getFromLocalStorage(categories.members.key))
+    log(VERBOSE, 'memberPageTitles', memberPageTitles)
+
+    const memberPageTitleRexExps = memberPageTitles.map(
+      (pageTitle) => new RegExp(`\\/w\\/${pageTitle}(?:[?#].*)?\\b`)
+    )
+    log(VERBOSE, 'memberPageTitleRexExps', memberPageTitleRexExps)
+
+    const f2pPageTitles = JSON.parse(getFromLocalStorage(categories.f2p.key))
+    log(VERBOSE, 'f2pPageTitles', f2pPageTitles)
+
+    const f2pPageTitlesRexExps = f2pPageTitles.map(
+      (pageTitle) => new RegExp(`\\/w\\/${pageTitle}(?:[?#].*)?\\b`)
+    )
+    log(VERBOSE, 'f2pPageTitlesRexExps', f2pPageTitlesRexExps)
+
+    function matchesAnyRegExp (string, regExpArray) {
+      for (const regExp of regExpArray) {
+        if (regExp.test(string)) return true
+      }
+
+      return false
+    }
+
+    const links = document.querySelectorAll('#content a')
+
+    observer.disconnect()
+
+    document.documentElement.style.setProperty('--f2p-link-color', '#8cd4e6')
+    document.documentElement.style.setProperty('--member-link-color', '#d3a1a1')
+
+    links.forEach((link) => {
+      const href = link.getAttribute('href')
+
+      if (matchesAnyRegExp(href, f2pPageTitlesRexExps)) {
+        link.style.color = (linkColorsEnabled && linkColorsF2P) ? 'var(--f2p-link-color, var(--link-color))' : 'var(--link-color)'
+      } else if (matchesAnyRegExp(href, memberPageTitleRexExps)) {
+        link.style.color = (linkColorsEnabled && linkColorsMembers) ? 'var(--member-link-color, var(--link-color))' : 'var(--link-color)'
+      }
+    })
+
+    startObserving(observer)
+  }
+
   function getMembersValue () {
+    log(DEBUG, 'getMembersValue')
+
     const infoboxTable = document.querySelector('table.infobox')
     log(VERBOSE, 'infoboxTable', infoboxTable)
 
@@ -121,13 +355,13 @@
   function maybeInsertPageTitleIcon (observer, membersValue) {
     log(DEBUG, 'maybeInsertPageTitleIcon')
 
-    const pageTitleIconEnabled = getFromLocalStorage('pageTitleIconEnabled', DEFAULTS.pageTitle.icon.enabled)
+    const pageTitleIconEnabled = getBooleanFromLocalStorage('pageTitleIconEnabled', DEFAULTS.pageTitle.icon.enabled)
     log(INFO, 'pageTitleIconEnabled', pageTitleIconEnabled)
 
-    const pageTitleIconBefore = getFromLocalStorage('pageTitleIconBefore', DEFAULTS.pageTitle.icon.before)
+    const pageTitleIconBefore = getBooleanFromLocalStorage('pageTitleIconBefore', DEFAULTS.pageTitle.icon.before)
     log(INFO, 'pageTitleIconBefore', pageTitleIconBefore)
 
-    const pageTitleIconAfter = getFromLocalStorage('pageTitleIconAfter', DEFAULTS.pageTitle.icon.after)
+    const pageTitleIconAfter = getBooleanFromLocalStorage('pageTitleIconAfter', DEFAULTS.pageTitle.icon.after)
     log(INFO, 'pageTitleIconAfter', pageTitleIconAfter)
 
     let iconType = ''
@@ -227,13 +461,13 @@
   function maybeUpdatePageTitleStyle (observer, membersValue) {
     log(DEBUG, 'maybeInsertPageTitleIcon')
 
-    const pageTitleStyleEnabled = getFromLocalStorage('pageTitleStyleEnabled', DEFAULTS.pageTitle.style.enabled)
+    const pageTitleStyleEnabled = getBooleanFromLocalStorage('pageTitleStyleEnabled', DEFAULTS.pageTitle.style.enabled)
     log(INFO, 'pageTitleStyleEnabled', pageTitleStyleEnabled)
 
-    const styleUppercase = getFromLocalStorage('pageTitleStyleUppercase', DEFAULTS.pageTitle.style.uppercase)
+    const styleUppercase = getBooleanFromLocalStorage('pageTitleStyleUppercase', DEFAULTS.pageTitle.style.uppercase)
     log(INFO, 'styleUppercase', styleUppercase)
 
-    const styleStrikethrough = getFromLocalStorage('pageTitleStyleStrikethrough', DEFAULTS.pageTitle.style.strikethrough)
+    const styleStrikethrough = getBooleanFromLocalStorage('pageTitleStyleStrikethrough', DEFAULTS.pageTitle.style.strikethrough)
     log(INFO, 'styleStrikethrough', styleStrikethrough)
 
     const pageTitleStyle = {
@@ -242,13 +476,13 @@
     }
     log(DEBUG, 'pageTitleStyle', pageTitleStyle)
 
-    const pageTitleColorEnabled = getFromLocalStorage('pageTitleColorEnabled', DEFAULTS.pageTitle.color.enabled)
+    const pageTitleColorEnabled = getBooleanFromLocalStorage('pageTitleColorEnabled', DEFAULTS.pageTitle.color.enabled)
     log(INFO, 'pageTitleColorEnabledP', pageTitleColorEnabled)
 
-    const pageTitleColorF2P = getFromLocalStorage('pageTitleColorF2P', DEFAULTS.pageTitle.color.f2p)
+    const pageTitleColorF2P = getBooleanFromLocalStorage('pageTitleColorF2P', DEFAULTS.pageTitle.color.f2p)
     log(INFO, 'pageTitleColorF2P', pageTitleColorF2P)
 
-    const pageTitleColorMembers = getFromLocalStorage('pageTitleColorMembers', DEFAULTS.pageTitle.color.members)
+    const pageTitleColorMembers = getBooleanFromLocalStorage('pageTitleColorMembers', DEFAULTS.pageTitle.color.members)
     log(INFO, 'pageTitleColorMembers', pageTitleColorMembers)
 
     const pageTitle = document.querySelector('.mw-page-title-main') || document.querySelector('.mw-first-heading')
@@ -383,35 +617,41 @@
 
     const panelWidth = document.querySelector('#p-personal').offsetWidth || 0
 
-    const pageTitleIconEnabled = getFromLocalStorage('pageTitleIconEnabled')
+    const pageTitleIconEnabled = getBooleanFromLocalStorage('pageTitleIconEnabled')
     log(INFO, 'pageTitleIconEnabled', pageTitleIconEnabled)
 
-    const iconPosition = getFromLocalStorage('pageTitleIconPosition')
-    log(INFO, 'iconPosition', iconPosition)
-
-    const pageTitleIconBefore = getFromLocalStorage('pageTitleIconBefore')
+    const pageTitleIconBefore = getBooleanFromLocalStorage('pageTitleIconBefore')
     log(INFO, 'pageTitleIconBefore', pageTitleIconBefore)
 
-    const pageTitleIconAfter = getFromLocalStorage('pageTitleIconAfter')
+    const pageTitleIconAfter = getBooleanFromLocalStorage('pageTitleIconAfter')
     log(INFO, 'pageTitleIconAfter', pageTitleIconAfter)
 
-    const pageTitleStyleEnabled = getFromLocalStorage('pageTitleStyleEnabled')
+    const pageTitleStyleEnabled = getBooleanFromLocalStorage('pageTitleStyleEnabled')
     log(INFO, 'pageTitleStyleEnabled', pageTitleStyleEnabled)
 
-    const pageTitleStyleUppercase = getFromLocalStorage('pageTitleStyleUppercase')
+    const pageTitleStyleUppercase = getBooleanFromLocalStorage('pageTitleStyleUppercase')
     log(INFO, 'pageTitleStyleUppercase', pageTitleStyleUppercase)
 
-    const pageTitleStyleStrikethrough = getFromLocalStorage('pageTitleStyleStrikethrough')
+    const pageTitleStyleStrikethrough = getBooleanFromLocalStorage('pageTitleStyleStrikethrough')
     log(INFO, 'pageTitleStyleStrikethrough', pageTitleStyleStrikethrough)
 
-    const pageTitleColorEnabled = getFromLocalStorage('pageTitleColorEnabled')
+    const pageTitleColorEnabled = getBooleanFromLocalStorage('pageTitleColorEnabled')
     log(INFO, 'pageTitleColorEnabled', pageTitleColorEnabled)
 
-    const pageTitleColorF2P = getFromLocalStorage('pageTitleColorF2P')
+    const pageTitleColorF2P = getBooleanFromLocalStorage('pageTitleColorF2P')
     log(INFO, 'pageTitleColorF2P', pageTitleColorF2P)
 
-    const pageTitleColorMembers = getFromLocalStorage('pageTitleColorMembers')
+    const pageTitleColorMembers = getBooleanFromLocalStorage('pageTitleColorMembers')
     log(INFO, 'pageTitleColorMembers', pageTitleColorMembers)
+
+    const linkColorsEnabled = getBooleanFromLocalStorage('linkColorsEnabled')
+    log(INFO, 'linkColorsEnabled', linkColorsEnabled)
+
+    const linkColorsF2P = getBooleanFromLocalStorage('linkColorsF2P')
+    log(INFO, 'linkColorsF2P', linkColorsF2P)
+
+    const linkColorsMembers = getBooleanFromLocalStorage('linkColorsMembers')
+    log(INFO, 'linkColorsMembers', linkColorsMembers)
 
     f2pHelperPopup.innerHTML = `
       <div
@@ -758,6 +998,101 @@
                                             value="1"
                                             class="oo-ui-inputWidget-input"
                                             ${pageTitleColorMembers ? 'checked' : ''}
+                                          />
+                                          <span class="oo-ui-checkboxInputWidget-checkIcon oo-ui-widget oo-ui-widget-enabled oo-ui-iconElement-icon oo-ui-icon-check oo-ui-iconElement oo-ui-labelElement-invisible oo-ui-iconWidget oo-ui-image-invert"></span>
+                                        </span>
+                                      </span>
+
+                                      <span class="oo-ui-fieldLayout-header">
+                                        <label class="oo-ui-labelElement-label">
+                                          Members
+                                        </label>
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </fieldset>
+                  </div>
+
+                  <div class="oo-ui-layout oo-ui-panelLayout oo-ui-panelLayout-padded mw-prefs-fieldset-wrapper">
+                    <fieldset class="oo-ui-layout oo-ui-labelElement oo-ui-fieldsetLayout">
+                      <legend class="oo-ui-fieldsetLayout-header">
+                        <span class="oo-ui-labelElement-label">
+                          Link colors
+                        </span>
+
+                        <span class="oo-ui-fieldLayout-field">
+                          <span class="oo-ui-widget oo-ui-widget-enabled oo-ui-inputWidget oo-ui-checkboxInputWidget">
+                            <input
+                              type="checkbox"
+                              tabindex="0"
+                              name="linkColorsEnabled"
+                              class="oo-ui-inputWidget-input"
+                              ${linkColorsEnabled ? 'checked' : ''}
+                            >
+                            <span class="oo-ui-checkboxInputWidget-checkIcon oo-ui-widget oo-ui-widget-enabled oo-ui-iconElement-icon oo-ui-icon-check oo-ui-iconElement oo-ui-labelElement-invisible oo-ui-iconWidget oo-ui-image-invert"></span>
+                          </span>
+                        </span>
+                      </legend>
+
+                      <div class="oo-ui-fieldsetLayout-group linkColorsEnabled" style="display: ${linkColorsEnabled ? 'initial' : 'none'}">
+                        <div class="oo-ui-widget oo-ui-widget-enabled">
+                          <div class="mw-htmlform-field-HTMLRadioField oo-ui-layout oo-ui-fieldLayout oo-ui-fieldLayout-align-top">
+                            <div class="oo-ui-fieldLayout-body">
+                              <span class="oo-ui-fieldLayout-header">
+                                <label class="oo-ui-labelElement-label"></label>
+                              </span>
+                              <div class="oo-ui-fieldLayout-field">
+                                <div
+                                  id="f2p-helper-link-colors"
+                                  class="oo-ui-widget oo-ui-widget-enabled oo-ui-inputWidget oo-ui-radioSelectInputWidget"
+                                >
+
+                                <div class="oo-ui-fieldLayout oo-ui-fieldLayout-align-inline oo-ui-labelElement oo-ui-layout">
+                                  <div class="oo-ui-fieldLayout-body">
+                                    <span class="oo-ui-fieldLayout-field">
+                                      <span
+                                        class="oo-ui-widget oo-ui-widget-enabled oo-ui-inputWidget oo-ui-checkboxInputWidget"
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          tabindex="0"
+                                          name="linkColorsF2P"
+                                          value="1"
+                                          class="oo-ui-inputWidget-input"
+                                          ${linkColorsF2P ? 'checked' : ''}
+                                        />
+                                        <span class="oo-ui-checkboxInputWidget-checkIcon oo-ui-widget oo-ui-widget-enabled oo-ui-iconElement-icon oo-ui-icon-check oo-ui-iconElement oo-ui-labelElement-invisible oo-ui-iconWidget oo-ui-image-invert"></span>
+                                      </span>
+                                    </span>
+
+                                    <span class="oo-ui-fieldLayout-header">
+                                      <label class="oo-ui-labelElement-label">
+                                        F2P
+                                      </label>
+                                    </span>
+                                  </div>
+                                </div>
+
+                                  <div class="oo-ui-fieldLayout oo-ui-fieldLayout-align-inline oo-ui-labelElement oo-ui-layout">
+                                    <div class="oo-ui-fieldLayout-body">
+                                      <span class="oo-ui-fieldLayout-field">
+                                        <span
+                                          class="oo-ui-widget oo-ui-widget-enabled oo-ui-inputWidget oo-ui-checkboxInputWidget"
+                                        >
+                                          <input
+                                            type="checkbox"
+                                            tabindex="0"
+                                            name="linkColorsMembers"
+                                            value="1"
+                                            class="oo-ui-inputWidget-input"
+                                            ${linkColorsMembers ? 'checked' : ''}
                                           />
                                           <span class="oo-ui-checkboxInputWidget-checkIcon oo-ui-widget oo-ui-widget-enabled oo-ui-iconElement-icon oo-ui-icon-check oo-ui-iconElement oo-ui-labelElement-invisible oo-ui-iconWidget oo-ui-image-invert"></span>
                                         </span>
@@ -1313,6 +1648,8 @@
             } else {
               logError(`Element not found: ${elementSelector}`)
             }
+
+            if (event.target.name === 'linkColorsEnabled') maybeUpdateLinks(true)
           }
         }
       )
@@ -1328,6 +1665,7 @@
     for (const mutation of mutationsList) {
       if (mutation.type === 'childList') {
         log(TRACE, 'childList mutation detected')
+
         const membersValue = getMembersValue()
         maybeInsertPageTitleIcon(observer, membersValue)
         maybeUpdatePageTitleStyle(observer, membersValue)
@@ -1350,5 +1688,6 @@
     )
   }
 
+  maybeUpdateLinks()
   startObserving(observer)
 })()

@@ -69,7 +69,7 @@ const config = {
       ]
     },
     // F2P last so it can take precedence
-    free_to_play: {
+    f2p: {
       ignore: false,
       subtitle: 'F2P Links',
       cssFilename: 'osrs_wiki_f2p_helper_f2p_links.user.css',
