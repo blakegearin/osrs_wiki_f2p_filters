@@ -131,8 +131,8 @@
     const pageTitleIconAfter = getFromLocalStorage('pageTitleIconAfter', DEFAULTS.pageTitle.icon.after)
     log(INFO, 'pageTitleIconAfter', pageTitleIconAfter)
 
-    let iconType = ''
-    let innerHtml = ''
+    let iconType = null
+    let innerHtml = null
 
     switch (membersValue) {
       case 'Yes':
@@ -176,7 +176,7 @@
     observer.disconnect()
 
     let existingIconSelector = `.${iconType}-icon.before`
-    if (pageTitleIconEnabled && pageTitleIconBefore) {
+    if (iconType && pageTitleIconEnabled && pageTitleIconBefore) {
       if (document.querySelector(existingIconSelector)) {
         log(VERBOSE, `Early exit because ${existingIconSelector} icon already exists`)
       } else {
@@ -199,7 +199,7 @@
     }
 
     existingIconSelector = `.${iconType}-icon.after`
-    if (pageTitleIconEnabled && pageTitleIconAfter) {
+    if (iconType && pageTitleIconEnabled && pageTitleIconAfter) {
       if (document.querySelector(existingIconSelector)) {
         log(VERBOSE, `Early exit because ${existingIconSelector} icon already exists`)
       } else {
